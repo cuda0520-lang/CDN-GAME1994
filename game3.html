@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>秘密調查處 - 黑夜追緝：抓捕盜採砂石車</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+
+        :root {
+            --bg-color: #050505;
+            --text-green: #33ff33;
+            --text-alert: #ff3333;
+            --text-blue: #33ccff;
+            --border-style: 2px solid var(--text-green);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-green);
+            font-family: 'DotGothic16', 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* CRT 螢幕掃描線特效 */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 999;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #app {
+            width: 900px;
+            max-width: 95%;
+            border: 4px solid #444;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(51, 255, 51, 0.2);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 系統開發者標頭 */
+        .authors-header {
+            background: #111;
+            color: #888;
+            font-size: 14px;
+            text-align: right;
+            padding: 5px 10px;
+            border-bottom: 1px solid #333;
+            font-family: sans-serif;
+            letter-spacing: 1px;
+        }
+
+        /* === 劇情對話畫面樣式 === */
+        #intro-container {
+            padding: 30px;
+            background-color: #000;
+            color: var(--text-green);
+        }
+
+        #intro-container h1 {
+            text-align: center; font-size: 32px; margin-top: 0; 
+            border-bottom: 2px dashed var(--text-green); padding-bottom: 10px;
+        }
+
+        .dialogue-wrapper {
+            display: flex; gap: 20px; background: #050505;
+            border: 2px solid var(--text-green); padding: 20px;
+            align-items: flex-start; min-height: 140px; text-align: left;
+            margin-bottom: 20px;
+        }
+
+        .portrait-box {
+            width: 120px; height: 140px; border: 3px solid var(--text-green);
+            background: #111; display: flex; justify-content: center; align-items: center;
+            flex-shrink: 0;
+        }
+
+        .portrait-box img {
+            width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;
+        }
+
+        .dialogue-content { flex-grow: 1; }
+        .speaker-title { font-size: 24px; font-weight: bold; color: #ffff33; margin-bottom: 10px; }
+        #dialogue-text { font-size: 20px; line-height: 1.6; color: #fff; }
+
+        .intro-controls { display: flex; justify-content: space-between; margin-top: 15px; }
+
+        /* === 遊戲畫面 === */
+        #game-screen { display: flex; height: 500px; }
+        
+        /* 左側：合法車牌列表 */
+        #left-panel {
+            width: 250px;
+            border-right: var(--border-style);
+            padding: 15px;
+            background-color: #0a110a;
+            display: flex;
+            flex-direction: column;
+        }
+        #left-panel h3 { margin-top: 0; color: var(--text-blue); border-bottom: 1px dashed var(--text-blue); padding-bottom: 10px; text-align: center;}
+        #plate-list { list-style: none; padding: 0; margin: 0; font-size: 20px; line-height: 1.8; text-align: center; font-weight: bold;}
+        
+        /* 右側：黑夜探照燈區與操作 */
+        #right-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .status-bar {
+            padding: 10px; background: #111; border-bottom: var(--border-style);
+            display: flex; justify-content: space-between; font-size: 18px; font-weight: bold;
+        }
+
+        /* 黑夜探照燈場景 */
+        #night-scene {
+            flex-grow: 1;
+            background-color: #111; 
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            --x: 50%; --y: 50%; 
+        }
+        
+        /* 手電筒遮罩 */
+        #night-scene::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle 120px at var(--x) var(--y), transparent 0%, rgba(0,0,0,0.98) 100%);
+            pointer-events: none; 
+            z-index: 5;
+        }
+
+        /* ASCII 砂石車 */
+        .ascii-truck {
+            color: #ccc;
+            font-family: 'Courier New', monospace;
+            white-space: pre;
+            font-size: 16px;
+            line-height: 1.2;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+        .license-plate {
+            display: inline-block;
+            background-color: #fff;
+            color: #000;
+            font-weight: bold;
+            padding: 2px 8px;
+            border: 2px solid #000;
+            margin-top: 5px;
+            font-size: 22px;
+        }
+
+        /* 控制按鈕 */
+        #controls {
+            padding: 15px;
+            background: #222;
+            display: flex;
+            justify-content: space-around;
+            border-top: var(--border-style);
+        }
+
+        /* 按鈕共用樣式 */
+        .btn {
+            font-family: inherit; font-size: 20px; padding: 12px 30px;
+            border: 2px solid; cursor: pointer; font-weight: bold;
+            background: #000; transition: all 0.1s; letter-spacing: 2px;
+            color: var(--text-green); border-color: var(--text-green);
+        }
+        .btn:active { transform: translateY(2px); }
+        .btn-pass { color: var(--text-blue); border-color: var(--text-blue); }
+        .btn-pass:hover { background: #002233; }
+        .btn-impound { color: var(--text-alert); border-color: var(--text-alert); }
+        .btn-impound:hover { background: #330000; }
+
+        /* === 勝利畫面 === */
+        #victory-screen {
+            padding: 40px;
+            text-align: center;
+            background: #051a05;
+        }
+        .password-box {
+            font-size: 60px; color: #ffff33; background: #111;
+            padding: 20px; border: 4px dashed #ffff33;
+            display: inline-block; margin: 20px 0; letter-spacing: 10px;
+        }
+        .history-text {
+            font-size: 18px; color: #ddd; line-height: 1.8;
+            background: rgba(0,0,0,0.5); padding: 20px; border: 1px solid #555;
+            text-align: justify;
+        }
+
+        .hidden { display: none !important; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+        }
+        .shake-effect { animation: shake 0.3s ease-in-out; }
+    </style>
+</head>
+<body>
+
+    <audio id="bgm" loop hidden>
+        <source src="HTMLMESEUM3.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="app">
+        <div class="authors-header">
+            SYSTEM DEV: D1144241015-王睿朋 | D1144241019-黃永鈞
+        </div>
+
+        <div id="intro-container">
+            <h1>【黑夜追緝行動】情報匯報</h1>
+            <div class="dialogue-wrapper">
+                <div class="portrait-box">
+                    <img id="portrait-img" src="SHMIN.png" alt="對話頭像">
+                </div>
+                <div class="dialogue-content">
+                    <div class="speaker-title" id="speaker-title">宜蘭熱心市民</div>
+                    <div id="dialogue-text">系統加載中...</div>
+                </div>
+            </div>
+            <div class="intro-controls">
+                <button class="btn" onclick="skipDialogue()" style="color:#888; border-color:#555; font-size: 16px; padding: 8px 20px;">快速跳過 >></button>
+                <button class="btn" id="btn-next" onclick="nextDialogue()" style="font-size: 18px; padding: 10px 25px;">下一句 ▼</button>
+            </div>
+            <div style="text-align: center; font-size: 14px; color: #55aa55; margin-top: 15px; animation: blink 2s infinite;">(點擊按鈕將同步啟動音訊模組)</div>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div id="left-panel">
+                <h3>合法申報名單</h3>
+                <ul id="plate-list" translate="no">
+                    </ul>
+            </div>
+
+            <div id="right-panel">
+                <div class="status-bar">
+                    <span id="sys-msg">系統提示：深夜埋伏中，請隨時注意車輛...</span>
+                    <span>攔查進度：<span id="round-display">1</span> / 5</span>
+                </div>
+                
+                <div id="night-scene">
+                    <div class="ascii-truck" id="truck-container">
+   ___________________
+  |                   |____
+  |   蘭陽溪砂石清運  |    |___
+  |___________________|    |   |
+   (O)             (O) '---(O)-'
+                        <br>
+                        <div class="license-plate" id="truck-plate" translate="no">XX-0000</div>
+                    </div>
+                </div>
+
+                <div id="controls">
+                    <button class="btn btn-pass" onclick="checkAnswer(true)">核對無誤 (放行)</button>
+                    <button class="btn btn-impound" onclick="checkAnswer(false)">非法盜採 (扣押)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="victory-screen" class="hidden">
+            <h1 style="color: #33ff33; margin-top:0;">破獲盜採集團！</h1>
+            <p style="font-size: 22px;">機密檔案解鎖密碼：</p>
+            <div class="password-box">1989</div>
+            <div class="history-text">
+                前宜蘭縣長陳定南在任內（1981—1989年）以鐵面無私、雷厲風行的治縣風格著稱，其中鐵腕整頓蘭陽溪盜採砂石與嚴格取締違規砂石車，為保護蘭陽平原的自然環境與交通安全奠定了重要基礎。
+            </div>
+            <br>
+            <button class="btn btn-pass" onclick="location.reload()" style="margin-top: 10px;">重新啟動系統</button>
+            <br><br>
+            <a href="index.html" style="color: var(--text-green); font-size: 16px; text-decoration: underline;">返回核心檔案庫首頁</a>
+        </div>
+    </div>
+
+    <script>
+        // --- 背景音樂觸發處理 ---
+        const bgm = document.getElementById('bgm');
+        let musicStarted = false;
+        
+        function startMusic() {
+            if (!musicStarted && bgm.paused) {
+                bgm.play().catch(error => console.log("音樂播放受阻：", error));
+                musicStarted = true;
+            }
+        }
+
+        // --- 豐富長劇情資料庫 ---
+        const dialogues = [
+            { speaker: "宜蘭熱心市民", text: "陳縣長！不好了！那群有黑道背景的不肖砂石業者越來越猖狂了！", img: "SHMIN.png" },
+            { speaker: "宜蘭熱心市民", text: "他們後半夜開著大卡車，在我們的生命之河——蘭陽溪大規模盜採砂石，整條河床都要被挖空了！", img: "SHMIN.png" },
+            { speaker: "宜蘭熱心市民", text: "而且好多都是沒申報的非法砂石車，在路上橫衝直撞，嚴重威脅我們宜蘭人的安全啊！", img: "SHMIN.png" },
+            { speaker: "隨行警官", text: "報告縣長，這夥人非常狡猾，白天拿著合法合約當掩護，深夜才越界超挖，而且沿路都派黑衣人把風放哨，很難抓到現行犯。", img: "GC.png" },
+            { speaker: "陳定南 (縣長)", text: "（神色嚴厲）蘭陽溪是宜蘭人的根！這群人為了一己私利破壞國土、危害縣民，簡直目無王法！", img: "CND.png" },
+            { speaker: "隨行警官", text: "縣長，深夜溪床視線太差，黑道甚至可能有武器，現場太危險了，您留在辦公室，我們帶隊去就好！", img: "GC.png" },
+            { speaker: "陳定南 (縣長)", text: "我不怕黑道，我只怕宜蘭的優美環境毀在我們這代人手裡！拿我的強力手電筒來，我親自帶隊去埋伏！", img: "CND.png" },
+            { speaker: "陳定南 (縣長)", text: "全體基層弟兄換上便服，跟我一起蹲入蘆葦叢。稽查員，等車輛經過，立刻用探照燈核對【合法申報名單】！", img: "CND.png" },
+            { speaker: "陳定南 (縣長)", text: "如果發現不在名單上的車牌，當場依法扣押！核對無誤的就放行。絕不寬貸！出擊！", img: "CND.png" }
+        ];
+
+        let diagIndex = 0;
+        let charIndex = 0;
+        let isTyping = false;
+        let typeTimer;
+
+        const textEl = document.getElementById('dialogue-text');
+        const speakerEl = document.getElementById('speaker-title');
+        const portraitImg = document.getElementById('portrait-img');
+        const btnNext = document.getElementById('btn-next');
+
+        function typeWriter() {
+            const currentLine = dialogues[diagIndex].text;
+            if (charIndex < currentLine.length) {
+                textEl.innerHTML += currentLine.charAt(charIndex);
+                charIndex++;
+                typeTimer = setTimeout(typeWriter, 35);
+            } else {
+                isTyping = false;
+                if (diagIndex === dialogues.length - 1) {
+                    btnNext.innerText = "出發埋伏 ➔";
+                    btnNext.style.color = "#ffff33";
+                    btnNext.style.borderColor = "#ffff33";
+                } else {
+                    btnNext.innerText = "下一句 ▼";
+                }
+            }
+        }
+
+        function playDialogue() {
+            startMusic();
+            clearTimeout(typeTimer);
+            textEl.innerHTML = "";
+            charIndex = 0;
+            isTyping = true;
+
+            const current = dialogues[diagIndex];
+            speakerEl.innerText = current.speaker;
+            portraitImg.src = current.img;
+            
+            typeWriter();
+        }
+
+        function nextDialogue() {
+            startMusic();
+            if (isTyping) {
+                clearTimeout(typeTimer);
+                textEl.innerHTML = dialogues[diagIndex].text;
+                isTyping = false;
+                if (diagIndex === dialogues.length - 1) {
+                    btnNext.innerText = "出發埋伏 ➔";
+                } else {
+                    btnNext.innerText = "下一句 ▼";
+                }
+            } else {
+                diagIndex++;
+                if (diagIndex < dialogues.length) {
+                    playDialogue();
+                } else {
+                    enterGame();
+                }
+            }
+        }
+
+        function skipDialogue() {
+            startMusic();
+            clearTimeout(typeTimer);
+            enterGame();
+        }
+
+        function enterGame() {
+            document.getElementById('intro-container').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            startGame();
+        }
+
+        // 初始化劇情
+        window.onload = () => {
+            playDialogue();
+        };
+
+        // === 遊戲核心變數與邏輯 ===
+        const totalRounds = 5;
+        let currentRound = 1;
+        let legalPlates = [];
+        let isCurrentLegal = false;
+
+        function generateRandomPlate() {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const c1 = chars.charAt(Math.floor(Math.random() * chars.length));
+            const c2 = chars.charAt(Math.floor(Math.random() * chars.length));
+            const num = Math.floor(1000 + Math.random() * 9000); // 1000~9999
+            return `${c1}${c2}-${num}`;
+        }
+
+        function startGame() {
+            legalPlates = [];
+            const listUl = document.getElementById('plate-list');
+            listUl.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const plate = generateRandomPlate();
+                legalPlates.push(plate);
+                listUl.innerHTML += `<li>${plate}</li>`;
+            }
+
+            const nightScene = document.getElementById('night-scene');
+            nightScene.addEventListener('mousemove', (e) => {
+                const rect = nightScene.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                nightScene.style.setProperty('--x', `${x}px`);
+                nightScene.style.setProperty('--y', `${y}px`);
+            });
+
+            nextRound();
+        }
+
+        function nextRound() {
+            if (currentRound > totalRounds) {
+                document.getElementById('game-screen').classList.add('hidden');
+                document.getElementById('victory-screen').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('round-display').innerText = currentRound;
+            document.getElementById('sys-msg').innerText = "系統提示：前方溪床傳來引擎聲，請用手電筒查驗車牌。";
+            document.getElementById('sys-msg').style.color = "var(--text-green)";
+
+            isCurrentLegal = Math.random() > 0.5;
+            let displayPlate = "";
+
+            if (isCurrentLegal) {
+                const randomIndex = Math.floor(Math.random() * legalPlates.length);
+                displayPlate = legalPlates[randomIndex];
+            } else {
+                do {
+                    displayPlate = generateRandomPlate();
+                } while (legalPlates.includes(displayPlate));
+            }
+
+            document.getElementById('truck-plate').innerText = displayPlate;
+            
+            const truck = document.getElementById('truck-container');
+            const offsetY = (Math.random() * 40 - 20) + "px";
+            truck.style.transform = `translateY(${offsetY})`;
+        }
+
+        function checkAnswer(playerActionPass) {
+            const app = document.getElementById('app');
+            const sysMsg = document.getElementById('sys-msg');
+
+            if (isCurrentLegal === playerActionPass) {
+                currentRound++;
+                nextRound();
+            } else {
+                sysMsg.innerText = ">> 警告：抓捕錯誤！請看清楚手電筒燈光下的車牌！";
+                sysMsg.style.color = "var(--text-alert)";
+                
+                app.classList.add('shake-effect');
+                setTimeout(() => {
+                    app.classList.remove('shake-effect');
+                    nextRound(); 
+                }, 400);
+            }
+        }
+
+        window.addEventListener('click', startMusic, { once: true });
+    </script>
+</body>
+</html>
